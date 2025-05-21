@@ -7,7 +7,7 @@
   deployrsConfigurations = {
     name = "deployrsConfigurations";
     type = "deployrsConfiguration";
-    transform = import ../transformers/deploy-rs-single.nix;
+    transform = import ../transformers/deployrsConfigurations.nix;
     output = "deploy.nodes";
   };
 in
