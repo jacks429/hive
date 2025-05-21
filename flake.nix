@@ -23,6 +23,11 @@
     inputs.nixago-exts.follows = "";
   };
 
+  inputs.deploy-rs = {
+    url = "github:serokell/deploy-rs";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
   # override downstream with inputs.hive.inputs.nixpkgs.follows = ...
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
   inputs.colmena.url = "github:divnix/blank";
@@ -32,6 +37,7 @@
     std,
     paisano,
     colmena,
+    deploy-rs,
     nixago,
     devshell,
     self,
