@@ -43,13 +43,25 @@
     self,
   } @ inputs: let
     inherit (std.inputs) haumea;
-    hive = haumea.lib.load {
-      src = ./src;
-      loader = haumea.lib.loaders.scoped;
-      exclude = ["blockTypes"];
-      inputs = removeAttrs (inputs // {inherit inputs;}) ["self"];
-    };
-
+    # Load everything from src
+    hive = let
+      # First, load all files from src, excluding blockTypes directory
+      allSrc = haumea.lib.load {
+        src = ./src;
+        loader = haumea.lib.loaders.scoped;
+        inputs = removeAttrs (inputs // {inherit inputs;}) ["self"];
+        matchers = {
+          exclude = [ ./src/blockTypes ];
+        };
+      };
+      
+      # Load blockTypes.nix separately
+      blockTypesFile = import ./src/blockTypes.nix {
+        inherit nixpkgs;
+        root = self;
+      };
+    in allSrc // { blockTypes = blockTypesFile; };
+    
     # compat wrapper for haumea.lib.load
     inherit (nixpkgs) lib;
     load = {

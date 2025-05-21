@@ -1,2 +1,2 @@
-# This directory is ignored by Haumea
-# It's used by blockTypes.nix but should not be scanned directly
+# This directory is excluded from Haumea scanning
+# It's loaded separately in flake.nix
