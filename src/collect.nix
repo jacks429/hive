@@ -84,15 +84,31 @@
       /*
       Data Lineage tracks data transformations and dependencies
       */
-      dataLineage = import ./collectors/dataLineage.nix {
-        inherit inputs nixpkgs root;
-      };
+      dataLineage = let
+        collector = import ./collectors/dataLineage.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      dataLineageRegistry = let
+        collector = import ./collectors/dataLineage.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (dataLineage self.renamer self);
       /*
       Schedules define when and how often jobs run
       */
-      schedules = import ./collectors/schedules.nix {
-        inherit inputs nixpkgs root;
-      };
+      schedules = let
+        collector = import ./collectors/schedules.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      schedulesRegistry = let
+        collector = import ./collectors/schedules.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (schedules self.renamer self);
       /*
       Secret Stores manage sensitive information
       */
@@ -102,31 +118,137 @@
       /*
       Workflows orchestrate multiple pipelines
       */
-      workflows = import ./collectors/workflows.nix {
-        inherit inputs nixpkgs root;
-      };
+      workflows = let
+        collector = import ./collectors/workflows.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      workflowsRegistry = let
+        collector = import ./collectors/workflows.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (workflows self.renamer self);
        /*
       Data Loaders fetch data from external sources
       */
-      dataLoaders = import ./collectors/dataLoaders.nix {
-        inherit inputs nixpkgs root;
-      };
+      dataLoaders = let
+        collector = import ./collectors/dataLoaders.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      dataLoadersRegistry = let
+        collector = import ./collectors/dataLoaders.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (dataLoaders self.renamer self);
        # Add versioning collector here
-      versioning = import ./collectors/versioning.nix {
-        inherit inputs nixpkgs root;
-      };
+      versioning = let
+        collector = import ./collectors/versioning.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      versioningRegistry = let
+        collector = import ./collectors/versioning.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (versioning self.renamer self);
       # Add lexicons collector here
-        lexicons = import ./collectors/lexicons.nix {
-        inherit inputs nixpkgs root;
-      };
+      lexicons = let
+        collector = import ./collectors/lexicons.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      lexiconsRegistry = let
+        collector = import ./collectors/lexicons.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (lexicons self.renamer self);
       # Add rules collector here
-      rules = import ./collectors/rules.nix {
-        inherit inputs nixpkgs root;
-      };
+      rules = let
+        collector = import ./collectors/rules.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      rulesRegistry = let
+        collector = import ./collectors/rules.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (rules self.renamer self);
       # Add leaderboards collector
       leaderboards = import ./collectors/leaderboards.nix {
         inherit inputs nixpkgs root;
       };
+
+      # Add ML-ops collectors
+      adversarialAttacks = let
+        collector = import ./collectors/adversarialAttacks.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      adversarialAttacksRegistry = let
+        collector = import ./collectors/adversarialAttacks.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (adversarialAttacks self.renamer self);
+      driftDetectors = let
+        collector = import ./collectors/driftDetectors.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      driftDetectorsRegistry = let
+        collector = import ./collectors/driftDetectors.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (driftDetectors self.renamer self);
+      fairnessMetrics = let
+        collector = import ./collectors/fairnessMetrics.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      fairnessMetricsRegistry = let
+        collector = import ./collectors/fairnessMetrics.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (fairnessMetrics self.renamer self);
+      interpretabilityReports = let
+        collector = import ./collectors/interpretabilityReports.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      interpretabilityReportsRegistry = let
+        collector = import ./collectors/interpretabilityReports.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (interpretabilityReports self.renamer self);
+      modelCompression = import ./collectors/modelCompression.nix {
+        inherit inputs nixpkgs root;
+      };
+      pipelineMonitors = import ./collectors/pipelineMonitors.nix {
+        inherit inputs nixpkgs root;
+      };
+
+      # Vector-related collectors
+      vectorCollections = let
+        collector = import ./collectors/vectorCollections.nix {
+          inherit inputs nixpkgs root;
+        };
+      in collector.collector;
+
+      # Vector-related registries
+      vectorCollectionsRegistry = let
+        collector = import ./collectors/vectorCollections.nix {
+          inherit inputs nixpkgs root;
+        };
+      in self: collector.registry (vectorCollections self.renamer self);
     };
 in {
   renamer = cell: target: "${cell}-${target}";

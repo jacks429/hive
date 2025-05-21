@@ -8,18 +8,20 @@
   # Get system-specific packages
   pkgs = nixpkgs.legacyPackages.${config.system};
   
-  # Extract catalog definition
-  catalog = {
-    inherit (config) name description;
-    datasets = config.datasets or {};
-    categories = config.categories or [];
-    tags = config.tags or [];
+  # Import transformers library
+  transformers = import ../../lib/transformers.nix { lib = l; pkgs = pkgs; };
+  
+  # Extract catalog definition with defaults
+  catalog = transformers.withDefaults config {
+    datasets = {};
+    categories = [];
+    tags = [];
   };
   
   # Generate JSON catalog file
   catalogJson = pkgs.writeTextFile {
     name = "${catalog.name}-catalog.json";
-    text = builtins.toJSON {
+    text = transformers.toJSON {
       name = catalog.name;
       description = catalog.description;
       datasets = catalog.datasets;
@@ -28,48 +30,52 @@
     };
   };
   
-  # Generate markdown documentation
-  catalogMd = pkgs.writeTextFile {
-    name = "${catalog.name}-catalog.md";
-    text = ''
-      # Dataset Catalog: ${catalog.name}
-      
-      ${catalog.description}
-      
-      ## Categories
-      
-      ${l.concatMapStrings (category: ''
-      - ${category}
-      '') catalog.categories}
-      
-      ## Datasets
-      
-      ${l.concatMapStrings (name: let dataset = catalog.datasets.${name}; in ''
-      ### ${name}
-      
-      ${dataset.description or ""}
-      
-      - **Format**: ${dataset.format or "Unknown"}
-      - **Size**: ${dataset.size or "Unknown"}
-      - **Tags**: ${l.concatStringsSep ", " (dataset.tags or [])}
-      - **License**: ${dataset.license or "Unknown"}
-      
-      ${dataset.notes or ""}
-      
-      '') (builtins.attrNames catalog.datasets)}
+  # Generate documentation using the transformers library
+  catalogDocs = transformers.generateDocs {
+    name = "Dataset Catalog: ${catalog.name}";
+    description = catalog.description;
+    usage = ''
+      ```bash
+      # Search the catalog
+      search-catalog-${catalog.name} SEARCH_TERM
+      ```
     '';
+    examples = ''
+      ```bash
+      # Search for datasets related to "image"
+      search-catalog-${catalog.name} image
+      
+      # Search for datasets with a specific license
+      search-catalog-${catalog.name} MIT
+      ```
+    '';
+    params = {
+      datasets = {
+        description = "Collection of datasets in the catalog";
+        type = "attrset";
+        value = catalog.datasets;
+      };
+      categories = {
+        description = "Categories for organizing datasets";
+        type = "list";
+        value = catalog.categories;
+      };
+      tags = {
+        description = "Tags for filtering datasets";
+        type = "list";
+        value = catalog.tags;
+      };
+    };
   };
   
-  # Create a command to search the catalog
-  searchScript = pkgs.writeShellScriptBin "search-catalog-${catalog.name}" ''
-    #!/usr/bin/env bash
-    
-    if [ $# -lt 1 ]; then
-      echo "Usage: search-catalog-${catalog.name} SEARCH_TERM"
-      exit 1
-    fi
-    
-    SEARCH_TERM="$1"
+  # Create a command to search the catalog using the transformers library
+  searchScript = transformers.withArgs {
+    name = "search-catalog-${catalog.name}";
+    description = "Search the ${catalog.name} dataset catalog";
+    args = [
+      { name = "SEARCH_TERM"; description = "Term to search for in dataset names, descriptions, and tags"; required = true; position = 0; }
+    ];
+  } ''
     CATALOG_FILE="${catalogJson}"
     
     echo "Searching catalog '${catalog.name}' for: $SEARCH_TERM"
@@ -87,15 +93,27 @@
     ' "$CATALOG_FILE"
   '';
   
+  # Create derivations using the transformers library
+  searchDrv = transformers.mkScript {
+    name = "search-catalog-${catalog.name}";
+    description = "Search the ${catalog.name} dataset catalog";
+    script = searchScript;
+  };
+  
+  docsDrv = transformers.mkDocs {
+    name = "${catalog.name}-catalog";
+    content = catalogDocs;
+  };
+  
 in {
   # Original catalog configuration
   inherit (catalog) name description datasets categories tags;
   
   # Derivations
   json = catalogJson;
-  documentation = catalogMd;
-  search = searchScript;
+  documentation = docsDrv;
+  search = searchDrv;
   
   # Add metadata
-  metadata = config.metadata or {};
+  metadata = catalog.metadata or {};
 }

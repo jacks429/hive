@@ -189,4 +189,27 @@
   vectorQueries = import ./transformers/vectorQueries.nix {
     inherit nixpkgs root;
   };
+
+  # ML-ops transformers
+  adversarialAttacks = import ./transformers/adversarialAttacks.nix {
+    inherit nixpkgs root;
+  };
+  driftDetectors = import ./transformers/driftDetectors.nix {
+    inherit nixpkgs root;
+  };
+  fairnessMetrics = import ./transformers/fairnessMetrics.nix {
+    inherit nixpkgs root;
+  };
+  interpretabilityReports = import ./transformers/interpretabilityReports.nix {
+    inherit nixpkgs root;
+  };
+  modelCompression = import ./transformers/modelCompression.nix {
+    inherit nixpkgs root;
+  };
+  pipelineMonitors = import ./transformers/pipelineMonitors.nix {
+    inherit nixpkgs root;
+  };
+  thresholdPolicies = import ./transformers/thresholdPolicies.nix {
+    inherit nixpkgs root;
+  };
 }

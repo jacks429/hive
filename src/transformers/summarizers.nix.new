@@ -1,0 +1,107 @@
+{
+  nixpkgs,
+  root,
+  inputs,
+}: config: let
+  l = nixpkgs.lib // builtins;
+  
+  # Import transformers library
+  transformers = import ../../lib/transformers.nix { lib = l; pkgs = nixpkgs.legacyPackages.${config.system}; };
+  
+  # Extract model definition
+  model = {
+    inherit (config) name type description framework system;
+    modelUri = config.modelUri or config.model-uri;
+    inherit (config) version params;
+    inherit (config) loadExpr processExpr service;
+  };
+  
+  # Import shared utilities
+  nlpModelWrapper = import ../utils/nlpModelWrapper.nix {
+    inherit nixpkgs root inputs;
+  };
+  
+  nlpServiceWrapper = import ../utils/nlpServiceWrapper.nix {
+    inherit nixpkgs root inputs;
+  };
+  
+  # Create model wrapper
+  modelWrapper = nlpModelWrapper model;
+  
+  # Create service wrapper if enabled
+  serviceWrapper = if model.service.enable or false
+                   then nlpServiceWrapper model
+                   else null;
+  
+  # Generate documentation using the transformers library
+  modelDocs = transformers.generateDocs {
+    name = "${model.type}: ${model.name}";
+    description = model.description;
+    usage = ''
+      ```bash
+      # Process text from stdin
+      echo "Text to summarize" | nix run .#run-${model.type}-${model.name}
+      
+      # Process text from file
+      nix run .#run-${model.type}-${model.name} -- input.txt
+      ```
+    '';
+    examples = ''
+      ```bash
+      echo "This is a long text that needs to be summarized..." | nix run .#run-${model.type}-${model.name}
+      ```
+      
+      ${if model.service.enable or false then ''
+      ```bash
+      # Start as a service
+      nix run .#serve-${model.type}-${model.name}
+      
+      # Then use the API
+      curl -X POST http://${model.service.host or "0.0.0.0"}:${toString (model.service.port or 8000)}/process \
+        -H "Content-Type: application/json" \
+        -d '{"text": "Text to summarize"}'
+      ```
+      '' else ""}
+    '';
+    params = {
+      framework = {
+        description = "Framework used by the model";
+        type = "string";
+        value = model.framework;
+      };
+      modelUri = {
+        description = "URI of the model to use";
+        type = "string";
+        value = model.modelUri;
+      };
+      version = {
+        description = "Version of the model";
+        type = "string";
+        value = model.version;
+      };
+    } // (l.mapAttrs (name: value: {
+      description = "Model parameter";
+      value = value;
+    }) (model.params or {}));
+  };
+  
+  # Create documentation derivation using the transformers library
+  modelDocsDrv = transformers.mkDocs {
+    name = "${model.name}-${model.type}";
+    content = modelDocs;
+  };
+  
+in {
+  # Original model data
+  inherit (model) name type framework;
+  modelUri = model.modelUri;
+  inherit (model) params version description;
+  
+  # Enhanced outputs
+  runScript = modelWrapper;
+  serviceScript = serviceWrapper;
+  documentation = modelDocsDrv;
+  
+  # Add metadata
+  metadata = model.metadata or {};
+}

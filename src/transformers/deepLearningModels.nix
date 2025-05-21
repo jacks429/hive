@@ -8,6 +8,9 @@
   # Get system-specific packages
   pkgs = nixpkgs.legacyPackages.${config.system};
   
+  # Import transformers library
+  transformers = import ../../lib/transformers.nix { lib = l; pkgs = pkgs; };
+  
   # Import shared utilities
   mlModelWrapper = import ../utils/mlModelWrapper.nix {
     inherit nixpkgs root;
@@ -17,16 +20,32 @@
     inherit nixpkgs root;
   };
   
+  # Apply defaults to configuration
+  model = transformers.withDefaults config {
+    service = { enable = false; host = "0.0.0.0"; port = 8000; };
+    customImports = "# No custom imports provided";
+  };
+  
   # Create model wrapper
-  modelWrapper = mlModelWrapper config;
+  modelWrapper = mlModelWrapper model;
   
   # Create service wrapper if enabled
-  serviceWrapper = if config.service.enable or false
-                   then mlServiceWrapper config
+  serviceWrapper = if model.service.enable
+                   then mlServiceWrapper model
                    else null;
   
-  # Create training script
-  trainingScript = ''
+  # Create training script using the transformers library
+  trainingScript = transformers.withArgs {
+    name = "train-model-${model.name}";
+    description = "Train the ${model.name} deep learning model";
+    args = [
+      { name = "data_path"; description = "Path to the training data"; required = true; position = 0; }
+      { name = "output_path"; description = "Path to save the trained model"; required = true; position = 1; }
+    ];
+  } ''
+    # Create Python script
+    SCRIPT_FILE=$(mktemp)
+    cat > "$SCRIPT_FILE" << 'EOF'
     #!/usr/bin/env python
     
     import json
@@ -34,17 +53,17 @@
     import sys
     
     # Framework-specific imports
-    ${if config.framework == "pytorch" then ''
+    ${if model.framework == "pytorch" then ''
       import torch
       import torch.nn as nn
       import torch.optim as optim
       from torch.utils.data import DataLoader
-    '' else if config.framework == "tensorflow" then ''
+    '' else if model.framework == "tensorflow" then ''
       import tensorflow as tf
       from tensorflow import keras
     '' else ''
       # Custom imports
-      ${config.customImports or "# No custom imports provided"}
+      ${model.customImports}
     ''}
     
     # Load dataset
@@ -57,7 +76,7 @@
     def create_model():
         # This is a placeholder - actual implementation would depend on the model architecture
         print("Creating model with architecture:")
-        print(json.dumps(${l.toJSON config.architecture}, indent=2))
+        print(json.dumps(${transformers.toJSON model.architecture}, indent=2))
         return "model"
     
     # Train model
@@ -76,7 +95,7 @@
     if __name__ == "__main__":
         # Parse arguments
         if len(sys.argv) < 3:
-            print("Usage: train-model-${config.name} <data_path> <output_path>")
+            print("Usage: train-model-${model.name} <data_path> <output_path>")
             sys.exit(1)
             
         data_path = sys.argv[1]
@@ -89,20 +108,34 @@
         model = create_model()
         
         # Train model
-        training_config = ${l.toJSON config.training}
+        training_config = ${transformers.toJSON model.training}
         model = train_model(model, dataset, training_config)
         
         # Save model
         save_model(model, output_path)
         
         print(f"Model training complete. Model saved to {output_path}")
+    EOF
+    
+    # Run the script
+    ${pkgs.python3}/bin/python "$SCRIPT_FILE" "$data_path" "$output_path"
+    
+    # Clean up
+    rm "$SCRIPT_FILE"
   '';
   
-  # Create training script derivation
-  trainingDrv = pkgs.writeScriptBin "train-model-${config.name}" trainingScript;
-  
-  # Create evaluation script
-  evaluationScript = ''
+  # Create evaluation script using the transformers library
+  evaluationScript = transformers.withArgs {
+    name = "evaluate-model-${model.name}";
+    description = "Evaluate the ${model.name} deep learning model";
+    args = [
+      { name = "model_path"; description = "Path to the trained model"; required = true; position = 0; }
+      { name = "data_path"; description = "Path to the evaluation data"; required = true; position = 1; }
+    ];
+  } ''
+    # Create Python script
+    SCRIPT_FILE=$(mktemp)
+    cat > "$SCRIPT_FILE" << 'EOF'
     #!/usr/bin/env python
     
     import json
@@ -110,16 +143,16 @@
     import sys
     
     # Framework-specific imports
-    ${if config.framework == "pytorch" then ''
+    ${if model.framework == "pytorch" then ''
       import torch
       import torch.nn as nn
       from torch.utils.data import DataLoader
-    '' else if config.framework == "tensorflow" then ''
+    '' else if model.framework == "tensorflow" then ''
       import tensorflow as tf
       from tensorflow import keras
     '' else ''
       # Custom imports
-      ${config.customImports or "# No custom imports provided"}
+      ${model.customImports}
     ''}
     
     # Load dataset
@@ -145,7 +178,7 @@
     if __name__ == "__main__":
         # Parse arguments
         if len(sys.argv) < 3:
-            print("Usage: evaluate-model-${config.name} <model_path> <data_path>")
+            print("Usage: evaluate-model-${model.name} <model_path> <data_path>")
             sys.exit(1)
             
         model_path = sys.argv[1]
@@ -158,86 +191,101 @@
         model = load_model(model_path)
         
         # Evaluate model
-        metrics = ${l.toJSON config.metrics}
+        metrics = ${transformers.toJSON model.metrics}
         results = evaluate_model(model, dataset, metrics)
         
         # Print results
         print("Evaluation results:")
         print(json.dumps(results, indent=2))
+    EOF
+    
+    # Run the script
+    ${pkgs.python3}/bin/python "$SCRIPT_FILE" "$model_path" "$data_path"
+    
+    # Clean up
+    rm "$SCRIPT_FILE"
   '';
   
-  # Create evaluation script derivation
-  evaluationDrv = pkgs.writeScriptBin "evaluate-model-${config.name}" evaluationScript;
+  # Generate documentation using the transformers library
+  modelDocs = transformers.generateDocs {
+    name = "Deep Learning Model: ${model.name}";
+    description = model.description;
+    usage = ''
+      ```bash
+      # Train the model
+      train-model-${model.name} <data_path> <output_path>
+      
+      # Evaluate the model
+      evaluate-model-${model.name} <model_path> <data_path>
+      
+      # Run inference with the model
+      run-model-${model.name} <input_file>
+      
+      ${if model.service.enable then ''
+      # Start model as a service
+      serve-model-${model.name}
+      ''' else ""}
+      ```
+    '';
+    examples = ''
+      ```bash
+      # Train a model on a dataset
+      train-model-${model.name} ./data/training ./models/${model.name}
+      
+      # Evaluate the trained model
+      evaluate-model-${model.name} ./models/${model.name} ./data/validation
+      
+      # Run inference on a file
+      echo "Input data" | run-model-${model.name}
+      ```
+    '';
+    params = {
+      framework = {
+        description = "Deep learning framework used by the model";
+        type = "string";
+        value = model.framework;
+      };
+      architecture = {
+        description = "Model architecture configuration";
+        type = "attrset";
+        value = model.architecture;
+      };
+      training = {
+        description = "Training configuration";
+        type = "attrset";
+        value = model.training;
+      };
+      metrics = {
+        description = "Evaluation metrics";
+        type = "list";
+        value = model.metrics;
+      };
+    };
+  };
   
-  # Create documentation
-  documentation = ''
-    # Deep Learning Model: ${config.name}
-    
-    ${config.description}
-    
-    ## Framework
-    
-    This model uses the **${config.framework}** framework.
-    
-    ## Architecture
-    
-    ```json
-    ${builtins.toJSON config.architecture}
-    ```
-    
-    ## Training Configuration
-    
-    ```json
-    ${builtins.toJSON config.training}
-    ```
-    
-    ## Evaluation Metrics
-    
-    ${l.concatStringsSep ", " config.metrics}
-    
-    ## Usage
-    
-    ### Train the model
-    
-    ```bash
-    nix run .#train-model-${config.name} -- <data_path> <output_path>
-    ```
-    
-    ### Evaluate the model
-    
-    ```bash
-    nix run .#evaluate-model-${config.name} -- <model_path> <data_path>
-    ```
-    
-    ### Run inference with the model
-    
-    ```bash
-    nix run .#run-model-${config.name} -- <input_file>
-    ```
-    
-    ${if config.service.enable then ''
-    ### Start model as a service
-    
-    ```bash
-    nix run .#serve-model-${config.name}
-    ```
-    
-    The service will be available at http://${config.service.host or "0.0.0.0"}:${toString config.service.port}.
-    
-    #### API Endpoints
-    
-    - POST /predict - Run inference with the model
-    - GET /info - Get model information
-    '' else ""}
-  '';
+  # Create derivations using the transformers library
+  trainingDrv = transformers.mkScript {
+    name = "train-model-${model.name}";
+    description = "Train the ${model.name} deep learning model";
+    script = trainingScript;
+  };
   
-  # Create documentation derivation
-  docsDrv = pkgs.writeTextFile {
-    name = "${config.name}-docs.md";
-    text = documentation;
+  evaluationDrv = transformers.mkScript {
+    name = "evaluate-model-${model.name}";
+    description = "Evaluate the ${model.name} deep learning model";
+    script = evaluationScript;
+  };
+  
+  docsDrv = transformers.mkDocs {
+    name = "${model.name}";
+    content = modelDocs;
   };
   
 in {
+  # Original model configuration
+  inherit (model) name description framework architecture training metrics;
+  
+  # Derivations
   train = trainingDrv;
   evaluate = evaluationDrv;
   run = modelWrapper;

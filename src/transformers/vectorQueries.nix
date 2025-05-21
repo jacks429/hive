@@ -8,13 +8,15 @@
   # Get system-specific packages
   pkgs = nixpkgs.legacyPackages.${config.system};
   
-  # Extract query definition
-  query = {
-    inherit (config) name description;
-    collection = config.collection or "";
-    filters = config.filters or [];
-    top-k = config.top-k or 10;
-    embedder = config.embedder or {
+  # Import transformers library
+  transformers = import ../../lib/transformers.nix { lib = l; pkgs = pkgs; };
+  
+  # Extract query definition with defaults
+  query = transformers.withDefaults config {
+    collection = "";
+    filters = [];
+    top-k = 10;
+    embedder = {
       type = "sentence-transformers";
       model = "all-MiniLM-L6-v2";
     };
@@ -23,7 +25,7 @@
   # Generate JSON query file
   queryJson = pkgs.writeTextFile {
     name = "${query.name}-query.json";
-    text = builtins.toJSON {
+    text = transformers.toJSON {
       name = query.name;
       description = query.description;
       collection = query.collection;
@@ -33,53 +35,61 @@
     };
   };
   
-  # Generate markdown documentation
-  docsMd = pkgs.writeTextFile {
-    name = "${query.name}-docs.md";
-    text = ''
-      # Vector Query: ${query.name}
+  # Generate documentation using the transformers library
+  queryDocs = transformers.generateDocs {
+    name = "Vector Query: ${query.name}";
+    description = query.description;
+    usage = ''
+      ```bash
+      # Run a query with default collection path
+      run-query-${query.name} "Your query text"
       
-      ${query.description}
-      
-      ## Configuration
-      
-      - **Collection**: ${query.collection}
-      - **Top K Results**: ${toString query.top-k}
-      
-      ## Embedder
-      
-      - **Type**: ${query.embedder.type}
-      - **Model**: ${query.embedder.model}
-      
-      ## Filters
-      
-      ${if query.filters != [] then ''
-      | Field | Operator | Value |
-      |-------|----------|-------|
-      ${l.concatMapStrings (filter: ''
-      | ${filter.field} | ${filter.operator} | ${
-        if builtins.isString filter.value 
-        then filter.value 
-        else builtins.toJSON filter.value
-      } |
-      '') query.filters}
-      '' else "No filters defined."}
+      # Run a query with custom collection path
+      run-query-${query.name} "Your query text" /path/to/collection
+      ```
     '';
+    examples = ''
+      ```bash
+      # Search for similar documents
+      run-query-${query.name} "What is machine learning?"
+      
+      # Search in a custom collection
+      run-query-${query.name} "What is machine learning?" ./my-vector-store
+      ```
+    '';
+    params = {
+      collection = {
+        description = "Vector collection name";
+        type = "string";
+        value = query.collection;
+      };
+      filters = {
+        description = "Filters to apply to the query";
+        type = "list";
+        value = query.filters;
+      };
+      top-k = {
+        description = "Number of top results to return";
+        type = "int";
+        value = query.top-k;
+      };
+      embedder = {
+        description = "Embedding model configuration";
+        type = "attrset";
+        value = query.embedder;
+      };
+    };
   };
   
-  # Create a command to run the query
-  runScript = pkgs.writeShellScriptBin "run-query-${query.name}" ''
-    #!/usr/bin/env bash
-    
-    if [ $# -lt 1 ]; then
-      echo "Usage: run-query-${query.name} QUERY_TEXT [COLLECTION_PATH]"
-      echo "Example: run-query-${query.name} 'What is machine learning?'"
-      exit 1
-    fi
-    
-    QUERY_TEXT="$1"
-    COLLECTION_PATH="$2"
-    
+  # Create a command to run the query using the transformers library
+  runScript = transformers.withArgs {
+    name = "run-query-${query.name}";
+    description = "Run vector query: ${query.name}";
+    args = [
+      { name = "QUERY_TEXT"; description = "Text to search for"; required = true; position = 0; }
+      { name = "COLLECTION_PATH"; description = "Path to the vector collection"; required = false; position = 1; }
+    ];
+  } ''
     echo "Running vector query: ${query.name}"
     echo "Query text: $QUERY_TEXT"
     echo "Collection: ${query.collection}"
@@ -258,6 +268,18 @@
     python3 run_query.py "$QUERY_TEXT" "$COLLECTION_PATH"
   '';
   
+  # Create derivations using the transformers library
+  runDrv = transformers.mkScript {
+    name = "run-query-${query.name}";
+    description = "Run vector query: ${query.name}";
+    script = runScript;
+  };
+  
+  docsDrv = transformers.mkDocs {
+    name = "${query.name}-query";
+    content = queryDocs;
+  };
+  
 in {
   # Original query configuration
   inherit (query) name description;
@@ -265,9 +287,9 @@ in {
   
   # Derivations
   json = queryJson;
-  documentation = docsMd;
-  run = runScript;
+  documentation = docsDrv;
+  run = runDrv;
   
   # Add metadata
-  metadata = config.metadata or {};
+  metadata = query.metadata or {};
 }

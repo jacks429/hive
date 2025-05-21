@@ -8,20 +8,22 @@
   # Get system-specific packages
   pkgs = nixpkgs.legacyPackages.${config.system};
   
-  # Extract profile definition
-  profile = {
-    inherit (config) name description;
-    cpu = config.cpu or {};
-    memory = config.memory or {};
-    gpu = config.gpu or null;
-    storage = config.storage or {};
-    network = config.network or {};
+  # Import transformers library
+  transformers = import ../../lib/transformers.nix { lib = l; pkgs = pkgs; };
+  
+  # Extract profile definition with defaults
+  profile = transformers.withDefaults config {
+    cpu = { cores = 1; "min-clock" = 0; architecture = "x86_64"; };
+    memory = { "min-ram" = 1; "recommended-ram" = 2; };
+    gpu = null;
+    storage = { "min-disk" = 1; "temp-space" = 0; };
+    network = { bandwidth = 0; ports = []; };
   };
   
   # Generate JSON profile file
   profileJson = pkgs.writeTextFile {
     name = "${profile.name}-profile.json";
-    text = builtins.toJSON {
+    text = transformers.toJSON {
       name = profile.name;
       description = profile.description;
       cpu = profile.cpu;
@@ -32,58 +34,64 @@
     };
   };
   
-  # Generate markdown documentation
-  profileMd = pkgs.writeTextFile {
-    name = "${profile.name}-profile.md";
-    text = ''
-      # Resource Profile: ${profile.name}
-      
-      ${profile.description}
-      
-      ## CPU Requirements
-      
-      - **Cores**: ${toString (profile.cpu.cores or 1)}
-      - **Min Clock**: ${toString (profile.cpu.min-clock or 0)} MHz
-      - **Architecture**: ${profile.cpu.architecture or "x86_64"}
-      
-      ## Memory Requirements
-      
-      - **Min RAM**: ${toString (profile.memory.min-ram or 1)} GB
-      - **Recommended RAM**: ${toString (profile.memory.recommended-ram or 2)} GB
-      
-      ${if profile.gpu != null then ''
-      ## GPU Requirements
-      
-      - **Required**: ${if profile.gpu.required or false then "Yes" else "No"}
-      - **Memory**: ${toString (profile.gpu.memory or 0)} GB
-      - **CUDA Version**: ${profile.gpu.cuda-version or "N/A"}
-      - **Vendor**: ${profile.gpu.vendor or "Any"}
-      '' else "## GPU Requirements\n\nNo GPU required for this profile.\n"}
-      
-      ## Storage Requirements
-      
-      - **Min Disk**: ${toString (profile.storage.min-disk or 1)} GB
-      - **Temp Space**: ${toString (profile.storage.temp-space or 0)} GB
-      
-      ## Network Requirements
-      
-      - **Bandwidth**: ${toString (profile.network.bandwidth or 0)} Mbps
-      - **Ports**: ${l.concatStringsSep ", " (map toString (profile.network.ports or []))}
+  # Generate documentation using the transformers library
+  profileDocs = transformers.generateDocs {
+    name = "Resource Profile: ${profile.name}";
+    description = profile.description;
+    usage = ''
+      ```bash
+      # Check if your system meets the requirements
+      check-profile-${profile.name}
+      ```
     '';
+    examples = ''
+      ```bash
+      # Check system compatibility
+      check-profile-${profile.name}
+      ```
+    '';
+    params = {
+      cpu = {
+        description = "CPU requirements";
+        type = "attrset";
+        value = profile.cpu;
+      };
+      memory = {
+        description = "Memory requirements";
+        type = "attrset";
+        value = profile.memory;
+      };
+      gpu = {
+        description = "GPU requirements (null if not required)";
+        type = "attrset or null";
+        value = profile.gpu;
+      };
+      storage = {
+        description = "Storage requirements";
+        type = "attrset";
+        value = profile.storage;
+      };
+      network = {
+        description = "Network requirements";
+        type = "attrset";
+        value = profile.network;
+      };
+    };
   };
   
   # Create a command to check if the current system meets the profile requirements
-  checkScript = pkgs.writeShellScriptBin "check-profile-${profile.name}" ''
-    #!/usr/bin/env bash
-    
+  checkScript = transformers.withArgs {
+    name = "check-profile-${profile.name}";
+    description = "Check if the current system meets the requirements of the ${profile.name} resource profile";
+  } ''
     echo "Checking system against resource profile: ${profile.name}"
     echo ""
     
     # Check CPU
     echo "CPU Requirements:"
     CPU_CORES=$(nproc)
-    echo "- Required cores: ${toString (profile.cpu.cores or 1)}, Available: $CPU_CORES"
-    if [ $CPU_CORES -lt ${toString (profile.cpu.cores or 1)} ]; then
+    echo "- Required cores: ${toString (profile.cpu.cores)}, Available: $CPU_CORES"
+    if [ $CPU_CORES -lt ${toString (profile.cpu.cores)} ]; then
       echo "  ❌ Insufficient CPU cores"
     else
       echo "  ✅ Sufficient CPU cores"
@@ -94,8 +102,8 @@
     echo "Memory Requirements:"
     MEM_TOTAL_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
     MEM_TOTAL_GB=$((MEM_TOTAL_KB / 1024 / 1024))
-    echo "- Required RAM: ${toString (profile.memory.min-ram or 1)} GB, Available: $MEM_TOTAL_GB GB"
-    if [ $MEM_TOTAL_GB -lt ${toString (profile.memory.min-ram or 1)} ]; then
+    echo "- Required RAM: ${toString (profile.memory.min-ram)} GB, Available: $MEM_TOTAL_GB GB"
+    if [ $MEM_TOTAL_GB -lt ${toString (profile.memory.min-ram)} ]; then
       echo "  ❌ Insufficient RAM"
     else
       echo "  ✅ Sufficient RAM"
@@ -120,13 +128,25 @@
     echo "Storage Requirements:"
     DISK_SPACE_KB=$(df -k . | tail -1 | awk '{print $4}')
     DISK_SPACE_GB=$((DISK_SPACE_KB / 1024 / 1024))
-    echo "- Required disk: ${toString (profile.storage.min-disk or 1)} GB, Available: $DISK_SPACE_GB GB"
-    if [ $DISK_SPACE_GB -lt ${toString (profile.storage.min-disk or 1)} ]; then
+    echo "- Required disk: ${toString (profile.storage.min-disk)} GB, Available: $DISK_SPACE_GB GB"
+    if [ $DISK_SPACE_GB -lt ${toString (profile.storage.min-disk)} ]; then
       echo "  ❌ Insufficient disk space"
     else
       echo "  ✅ Sufficient disk space"
     fi
   '';
+  
+  # Create derivations using the transformers library
+  checkDrv = transformers.mkScript {
+    name = "check-profile-${profile.name}";
+    description = "Check if the current system meets the requirements of the ${profile.name} resource profile";
+    script = checkScript;
+  };
+  
+  docsDrv = transformers.mkDocs {
+    name = "${profile.name}-profile";
+    content = profileDocs;
+  };
   
 in {
   # Original profile configuration
@@ -135,9 +155,9 @@ in {
   
   # Derivations
   json = profileJson;
-  documentation = profileMd;
-  check = checkScript;
+  documentation = docsDrv;
+  check = checkDrv;
   
   # Add metadata
-  metadata = config.metadata or {};
+  metadata = profile.metadata or {};
 }

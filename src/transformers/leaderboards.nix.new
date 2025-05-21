@@ -1,0 +1,189 @@
+{
+  nixpkgs,
+  root,
+  inputs,
+}: config: let
+  l = nixpkgs.lib // builtins;
+  
+  # Get system-specific packages
+  pkgs = nixpkgs.legacyPackages.${config.system};
+  
+  # Import transformers library
+  transformers = import ../../lib/transformers.nix { lib = l; pkgs = pkgs; };
+  
+  # Extract leaderboard definition
+  leaderboard = {
+    inherit (config) name description task;
+    inherit (config) primaryMetric metrics sort;
+    displayOptions = config.displayOptions or {};
+  };
+  
+  # Generate markdown leaderboard
+  generateMarkdown = pkgs.writeTextFile {
+    name = "${leaderboard.name}-leaderboard.md";
+    text = ''
+      # ${leaderboard.name} Leaderboard
+      
+      Task: ${leaderboard.task}
+      
+      | Model | ${l.concatMapStrings (metric: metric + " | ") leaderboard.metrics} Date | Commit |
+      |-------|${l.concatMapStrings (_: "-------|") leaderboard.metrics} ------|--------|
+      
+      *No entries yet*
+    '';
+  };
+  
+  # Generate CSV leaderboard
+  generateCsv = pkgs.writeTextFile {
+    name = "${leaderboard.name}-leaderboard.csv";
+    text = ''
+      Model,${l.concatStringsSep "," leaderboard.metrics},Date,Commit
+    '';
+  };
+  
+  # Create a command to generate the leaderboard using the transformers library
+  generateLeaderboardScript = transformers.mkScript {
+    name = "generate-leaderboard-${leaderboard.name}";
+    description = "Generate leaderboard for ${leaderboard.name}";
+    script = ''
+      echo "Generating leaderboard for ${leaderboard.name}"
+      
+      # Create output directory
+      mkdir -p ./leaderboards
+      
+      # Copy markdown and CSV files
+      cp ${generateMarkdown} ./leaderboards/${leaderboard.name}.md
+      cp ${generateCsv} ./leaderboards/${leaderboard.name}.csv
+      
+      echo "Leaderboard generated at:"
+      echo "  - ./leaderboards/${leaderboard.name}.md"
+      echo "  - ./leaderboards/${leaderboard.name}.csv"
+    '';
+  };
+  
+  # Create a command to add an entry to the leaderboard using the transformers library
+  addEntryScript = transformers.withArgs {
+    name = "add-leaderboard-entry-${leaderboard.name}";
+    description = "Add an entry to the ${leaderboard.name} leaderboard";
+    args = [
+      { name = "MODEL_NAME"; description = "Name of the model"; required = true; position = 0; }
+    ] ++ l.imap0 (idx: metric: {
+      name = "METRIC_${toString idx}";
+      description = "Value for metric '${metric}'";
+      required = true;
+      position = idx + 1;
+    }) leaderboard.metrics;
+  } ''
+    # Check if we have the right number of metrics
+    if [ $# -ne ${toString (l.length leaderboard.metrics + 1)} ]; then
+      echo "Error: Expected ${toString (l.length leaderboard.metrics)} metrics (${l.concatStringsSep ", " leaderboard.metrics}), got $# values"
+      exit 1
+    fi
+    
+    # Get current date
+    DATE=$(date +"%Y-%m-%d")
+    
+    # Get current git commit if in a git repo
+    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "N/A")
+    
+    # Create leaderboards directory if it doesn't exist
+    mkdir -p ./leaderboards
+    
+    # Create files if they don't exist
+    if [ ! -f ./leaderboards/${leaderboard.name}.md ]; then
+      cp ${generateMarkdown} ./leaderboards/${leaderboard.name}.md
+    fi
+    
+    if [ ! -f ./leaderboards/${leaderboard.name}.csv ]; then
+      cp ${generateCsv} ./leaderboards/${leaderboard.name}.csv
+    fi
+    
+    # Add entry to CSV
+    echo "$MODEL_NAME,${l.concatMapStrings (idx: "$METRIC_${toString idx},") (l.range 0 (l.length leaderboard.metrics - 1))}$DATE,$COMMIT" >> ./leaderboards/${leaderboard.name}.csv
+    
+    # Update markdown file
+    if grep -q "No entries yet" ./leaderboards/${leaderboard.name}.md; then
+      # Remove "No entries yet" line
+      sed -i '/\*No entries yet\*/d' ./leaderboards/${leaderboard.name}.md
+    fi
+    
+    # Add entry to markdown
+    METRICS_STR=""
+    ${l.concatMapStrings (idx: ''
+    METRICS_STR="$METRICS_STR$METRIC_${toString idx} | "
+    '') (l.range 0 (l.length leaderboard.metrics - 1))}
+    
+    echo "| $MODEL_NAME | $METRICS_STR$DATE | $COMMIT |" >> ./leaderboards/${leaderboard.name}.md
+    
+    echo "Added entry to leaderboard:"
+    echo "  - Model: $MODEL_NAME"
+    echo "  - Metrics: ${l.concatMapStrings (idx: "$METRIC_${toString idx} ") (l.range 0 (l.length leaderboard.metrics - 1))}"
+    echo "  - Date: $DATE"
+    echo "  - Commit: $COMMIT"
+  '';
+  
+  # Generate documentation using the transformers library
+  leaderboardDocs = transformers.generateDocs {
+    name = "${leaderboard.name} Leaderboard";
+    description = leaderboard.description;
+    usage = ''
+      ```bash
+      # Generate the leaderboard
+      generate-leaderboard-${leaderboard.name}
+      
+      # Add an entry to the leaderboard
+      add-leaderboard-entry-${leaderboard.name} "Model Name" ${l.concatMapStrings (metric: "0.${toString (l.mod (l.hashString "md5" metric) 99)} ") leaderboard.metrics}
+      ```
+    '';
+    examples = ''
+      ```bash
+      # Generate an empty leaderboard
+      generate-leaderboard-${leaderboard.name}
+      
+      # Add a model with metrics
+      add-leaderboard-entry-${leaderboard.name} "BERT-base" 0.95 0.87 0.92
+      
+      # Add another model
+      add-leaderboard-entry-${leaderboard.name} "GPT-2" 0.97 0.89 0.94
+      ```
+    '';
+    params = {
+      primaryMetric = {
+        description = "The primary metric used for sorting";
+        type = "string";
+        value = leaderboard.primaryMetric;
+      };
+      metrics = {
+        description = "List of metrics to track";
+        type = "list";
+        value = leaderboard.metrics;
+      };
+      sort = {
+        description = "Sort order (asc or desc)";
+        type = "string";
+        value = leaderboard.sort;
+      };
+    };
+  };
+  
+  # Create documentation derivation using the transformers library
+  leaderboardDocsDrv = transformers.mkDocs {
+    name = "${leaderboard.name}-leaderboard";
+    content = leaderboardDocs;
+  };
+  
+in {
+  # Original leaderboard configuration
+  inherit (leaderboard) name description task;
+  inherit (leaderboard) primaryMetric metrics sort;
+  
+  # Derivations
+  markdown = generateMarkdown;
+  csv = generateCsv;
+  generateLeaderboard = generateLeaderboardScript;
+  addEntry = addEntryScript;
+  documentation = leaderboardDocsDrv;
+  
+  # Add metadata
+  metadata = config.metadata or {};
+}

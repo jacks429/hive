@@ -1,0 +1,2 @@
+# This directory is ignored by Haumea
+# It's used by blockTypes.nix but should not be scanned directly

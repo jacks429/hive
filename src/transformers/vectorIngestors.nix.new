@@ -1,0 +1,120 @@
+{ inputs, nixpkgs, root }:
+config: let
+  l = nixpkgs.lib // builtins;
+  
+  # Get system-specific packages
+  pkgs = nixpkgs.legacyPackages.${config.system};
+  
+  # Import transformers library
+  transformers = import ../../lib/transformers.nix { lib = l; pkgs = pkgs; };
+  
+  # Convert config to JSON
+  configJson = pkgs.writeTextFile {
+    name = "vector-ingestor-config.json";
+    text = l.toJSON {
+      collection = config.collection;
+      sources = config.sources;
+      processors = config.processors;
+      embedder = config.embedder;
+    };
+  };
+  
+  # Create runner script using the transformers library
+  runnerScript = transformers.withArgs {
+    name = "run-vectorIngestors-${config.name}";
+    description = "Run vector ingestor: ${config.name}";
+    args = [
+      { name = "OUTPUT_DIR"; description = "Output directory for vector store"; required = false; position = 0; }
+    ];
+  } ''
+    echo "Running vector ingestor: ${config.name}"
+    
+    # Default output directory
+    if [ -z "$OUTPUT_DIR" ]; then
+      OUTPUT_DIR="${config.output-dir or "$HOME/.local/share/vector-store/${config.collection}"}"
+    fi
+    
+    echo "Output directory: $OUTPUT_DIR"
+    
+    # Run the ingestor
+    ${pkgs.python3.withPackages (ps: with ps; [ 
+      numpy sentence-transformers
+    ])}/bin/python ${root.utils.vectorIngest}/ingestor.py \
+      --config ${configJson} \
+      --output-dir "$OUTPUT_DIR"
+  '';
+  
+  # Generate documentation using the transformers library
+  documentation = transformers.generateDocs {
+    name = "Vector Ingestor: ${config.name}";
+    description = config.description;
+    usage = ''
+      ```bash
+      # Run with default output directory
+      run-vectorIngestors-${config.name}
+      
+      # Run with custom output directory
+      run-vectorIngestors-${config.name} /path/to/output
+      ```
+    '';
+    examples = ''
+      ```bash
+      # Ingest documents with default settings
+      run-vectorIngestors-${config.name}
+      
+      # Ingest documents to a custom directory
+      run-vectorIngestors-${config.name} ./my-vectors
+      ```
+    '';
+    params = {
+      collection = {
+        description = "Vector collection name";
+        type = "string";
+        value = config.collection;
+      };
+      sources = {
+        description = "Data sources to ingest";
+        type = "list";
+        value = config.sources;
+      };
+      processors = {
+        description = "Text processors to apply";
+        type = "list";
+        value = config.processors;
+      };
+      embedder = {
+        description = "Embedding model configuration";
+        type = "object";
+        value = config.embedder;
+      };
+    };
+  };
+  
+  # Create derivations using the transformers library
+  runnerDrv = transformers.mkScript {
+    name = "run-vectorIngestors-${config.name}";
+    description = "Run vector ingestor: ${config.name}";
+    script = runnerScript;
+  };
+  
+  docsDrv = transformers.mkDocs {
+    name = "vectorIngestors-${config.name}-docs";
+    content = documentation;
+  };
+  
+  # Create a package derivation using the transformers library
+  packageDrv = transformers.mkPackage {
+    name = "vectorIngestors-${config.name}";
+    paths = [ runnerDrv docsDrv ];
+  };
+  
+in {
+  # Original configuration
+  inherit (config) name description collection;
+  inherit (config) sources processors embedder system;
+  
+  # Derivations
+  runner = runnerDrv;
+  docs = docsDrv;
+  package = packageDrv;
+}

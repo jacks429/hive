@@ -6,6 +6,9 @@
   l = nixpkgs.lib // builtins;
   pkgs = nixpkgs.legacyPackages.${builtins.currentSystem};
   
+  # Import transformers library
+  transformers = import ../../lib/transformers.nix { lib = l; pkgs = pkgs; };
+  
   # Get all taxonomies
   taxonomies = root.collectors.taxonomies (cell: target: "${cell}-${target}");
   
@@ -63,12 +66,36 @@
     ```
   '';
   
-  # Generate combined documentation for all taxonomies
-  allTaxonomiesDocs = ''
-    # Taxonomies
-    
-    This document provides an overview of all available taxonomies.
-    
+  # Generate combined documentation for all taxonomies using the transformers library
+  allTaxonomiesDocs = transformers.generateDocs {
+    name = "Taxonomies";
+    description = "This document provides an overview of all available taxonomies.";
+    usage = ''
+      ```nix
+      # Reference in your code
+      {
+        inputs,
+        cell,
+      }: {
+        # Use the taxonomy documentation
+        inherit (inputs.hive.taxonomyDocs) markdown html;
+      }
+      ```
+    '';
+    examples = ''
+      ```bash
+      # View the documentation
+      nix run .#view-taxonomy-docs
+      ```
+    '';
+    params = {
+      taxonomies = {
+        description = "Available taxonomies";
+        type = "attrset";
+        value = l.mapAttrs (name: _: name) taxonomies;
+      };
+    };
+  } + "\n\n" + ''
     ## Available Taxonomies
     
     ${l.concatStringsSep "\n" (l.mapAttrsToList (name: _:
@@ -80,11 +107,10 @@
     ) taxonomies)}
   '';
   
-  # Create a derivation for the documentation
-  docsDrv = pkgs.writeTextFile {
-    name = "taxonomies-documentation";
-    text = allTaxonomiesDocs;
-    destination = "/share/taxonomies/documentation.md";
+  # Create a derivation for the documentation using the transformers library
+  docsDrv = transformers.mkDocs {
+    name = "taxonomies";
+    content = allTaxonomiesDocs;
   };
   
   # Create HTML documentation
@@ -92,13 +118,44 @@
     mkdir -p $out/share/taxonomies
     ${pkgs.pandoc}/bin/pandoc -f markdown -t html \
       -o $out/share/taxonomies/documentation.html \
-      ${docsDrv}/share/taxonomies/documentation.md
+      ${docsDrv}/share/doc/taxonomies.md
   '';
+  
+  # Create a script to view the documentation using the transformers library
+  viewScript = transformers.withArgs {
+    name = "view-taxonomy-docs";
+    description = "View taxonomy documentation";
+  } ''
+    echo "Opening taxonomy documentation..."
+    
+    # Create a temporary directory
+    TEMP_DIR=$(mktemp -d)
+    trap "rm -rf $TEMP_DIR" EXIT
+    
+    # Copy the documentation
+    cp ${docsDrv}/share/doc/taxonomies.md $TEMP_DIR/taxonomies.md
+    
+    # Convert to HTML
+    ${pkgs.pandoc}/bin/pandoc -f markdown -t html \
+      -o $TEMP_DIR/taxonomies.html \
+      $TEMP_DIR/taxonomies.md
+    
+    # Open in browser
+    ${pkgs.xdg-utils}/bin/xdg-open $TEMP_DIR/taxonomies.html
+  '';
+  
+  # Create view script derivation using the transformers library
+  viewDrv = transformers.mkScript {
+    name = "view-taxonomy-docs";
+    description = "View taxonomy documentation";
+    script = viewScript;
+  };
   
 in {
   # Documentation derivations
   markdown = docsDrv;
   html = htmlDocsDrv;
+  view = viewDrv;
   
   # Raw documentation text
   text = allTaxonomiesDocs;

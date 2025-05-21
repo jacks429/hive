@@ -46,6 +46,7 @@
     hive = haumea.lib.load {
       src = ./src;
       loader = haumea.lib.loaders.scoped;
+      exclude = ["blockTypes"];
       inputs = removeAttrs (inputs // {inherit inputs;}) ["self"];
     };
 
@@ -255,6 +256,38 @@
           type = "datasetCatalog";
           name = "datasetCatalog";
         }
+        {
+          type = "adversarialAttacks";
+          name = "adversarial-attacks";
+        }
+        {
+          type = "driftDetectors";
+          name = "drift-detectors";
+        }
+        {
+          type = "fairnessMetrics";
+          name = "fairness-metrics";
+        }
+        {
+          type = "interpretabilityReports";
+          name = "interpretability-reports";
+        }
+        {
+          type = "modelCompression";
+          name = "model-compression";
+        }
+        {
+          type = "pipelineMonitors";
+          name = "pipeline-monitors";
+        }
+        {
+          type = "thresholdPolicies";
+          name = "threshold-policies";
+        }
+        {
+          type = "vectorSearch";
+          name = "vector-searches";
+        }
         (std.blockTypes.nixago "configs")
         (std.blockTypes.devshells "shells" {ci.build = true;})
       ];
@@ -263,6 +296,12 @@
       inherit load findLoad;
       inherit (hive) blockTypes collect;
       inherit (paisano) grow growOn pick harvest winnow;
+
+      # Export the transformers and collectors libraries
+      lib = {
+        transformers = import ./lib/transformers.nix { inherit (nixpkgs) lib; pkgs = nixpkgs.legacyPackages.x86_64-linux; };
+        collectors = import ./lib/collectors.nix { inherit (nixpkgs) lib; pkgs = nixpkgs.legacyPackages.x86_64-linux; };
+      };
     }
     haumea.lib;
 }
