@@ -1,0 +1,55 @@
+# Add to cellBlocks in flake.nix
+cellBlocks = [
+  # Existing blocks
+  # ...
+  
+  # New ML-ops blocks
+  {
+    type = "deepLearningModels";
+    name = "deep-learning-models";
+  }
+  {
+    type = "hyperparameterSchedulers";
+    name = "hyperparameter-schedulers";
+  }
+  {
+    type = "explainabilityTechniques";
+    name = "explainability-techniques";
+  }
+  {
+    type = "driftDetectors";
+    name = "drift-detectors";
+  }
+  {
+    type = "fairnessMetrics";
+    name = "fairness-metrics";
+  }
+  {
+    type = "modelCompression";
+    name = "model-compression";
+  }
+  {
+    type = "adversarialAttacks";
+    name = "adversarial-attacks";
+  }
+  {
+    type = "interpretabilityReports";
+    name = "interpretability-reports";
+  }
+  {
+    type = "dataValidators";
+    name = "data-validators";
+  }
+  {
+    type = "pipelineMonitors";
+    name = "pipeline-monitors";
+  }
+  {
+    type = "notebooks";
+    name = "notebooks";
+  }
+  {
+    type = "ciCheckers";
+    name = "ci-checkers";
+  }
+]

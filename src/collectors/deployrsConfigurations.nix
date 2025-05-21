@@ -7,7 +7,7 @@
 
   l = nixpkgs.lib // builtins;
 
-  inherit (root) requireInput walkPaisano checks transformers;
+  inherit (root) requireInput walkPaisano checks transformers actions;
 
   walk = self:
     walkPaisano self cellBlock (system: cell: [
@@ -17,6 +17,7 @@
       }))
       (l.mapAttrs (_: checks.bee))
       (l.mapAttrs (_: transformers.deployrsConfigurations))
+      (l.mapAttrs (_: actions.deployrsConfigurations))
       (l.filterAttrs (_: config: config.bee.system == system))
     ])
     renamer;

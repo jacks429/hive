@@ -1,0 +1,36 @@
+name: Evaluation Governance Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  evaluation-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v20
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      
+      # Run regression tests
+      - name: Run regression tests
+        run: nix flake check .#regressionTests
+      
+      # Run baseline checks for QA task
+      - name: Generate QA evaluation results
+        run: nix run .#run-qa-evaluation
+        
+      - name: Check against baselines
+        run: |
+          for baseline in $(nix eval --json .#baselinesByTask.qa-v1 | jq -r '.[].name'); do
+            nix run .#check-baseline-$baseline -- ./results/qa-evaluation-results.json
+          done
+      
+      # Apply threshold policies
+      - name: Evaluate against threshold policies
+        run: |
+          for policy in $(nix eval --json .#policiesByTask.qa-v1 | jq -r '.[].name'); do
+            nix run .#eval-threshold-$

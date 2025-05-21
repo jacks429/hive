@@ -1,0 +1,14 @@
+{
+  "newBlockTypes": ["resourceProfiles", "schemaEvolution", "loadTests", "datasetCatalog"],
+  "cellFolders": ["cells/resource-profiles/", "cells/schema-evolution/", "cells/load-tests/", "cells/dataset-catalog/"],
+  "collectors": ["src/collectors/resourceProfiles.nix", "src/collectors/schemaEvolution.nix", "src/collectors/loadTests.nix", "src/collectors/datasetCatalog.nix"],
+  "transformers": ["src/transformers/resourceProfiles.nix", "src/transformers/schemaEvolution.nix", "src/transformers/loadTests.nix", "src/transformers/datasetCatalog.nix"],
+  "wrappers": ["profile-*", "migrate-*-up|down", "load-test-*", "datasetCatalog"],
+  "todo": [
+    "Create SQL runner helpers for schema migrations",
+    "Add GPU configuration flags for resource profiles",
+    "Decide on locust vs k6 as default load testing tool",
+    "Implement HTML renderer for dataset catalog cards",
+    "Add validation for schema version ordering"
+  ]
+}

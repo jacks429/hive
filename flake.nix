@@ -135,7 +135,126 @@
           type = "shell";
           name = "shell";
         }
-
+        {
+          type = "pipelines";
+          name = "pipelines";
+        }
+        {
+          type = "hooks";
+          name = "hooks";
+        }
+        {
+          type = "qualityGates";
+          name = "quality-gates";
+        }
+        {
+          type = "microservices";
+          name = "microservices";
+        }
+        {
+          type = "datasets";
+          name = "datasets";
+        }
+        {
+          type = "workflows";
+          name = "workflows";
+        }
+        {
+          type = "serviceEndpoints";
+          name = "serviceEndpoints";
+        }
+        {
+          type = "parameters";
+          name = "parameters";
+        }
+        {
+          type = "environments";
+          name = "environments";
+        }
+        {
+          type = "modelRegistry";
+          name = "model-registry";
+        }
+        {
+          type = "templates";
+          name = "templates";
+        }
+        {
+          type = "dataLineage";
+          name = "data-lineage";
+        }
+        {
+          type = "schedules";
+          name = "schedules";
+        }
+        {
+          type = "dataLoaders";
+          name = "data-loaders";
+        }
+        {
+          type = "lexicons";
+          name = "lexicons";
+        }
+        {
+          type = "evaluationWorkflows";
+          name = "evaluation-workflows";
+        }
+        {
+          type = "secretStores";
+          name = "secret-stores";
+        }
+        {
+          type = "experimentTrials";
+          name = "experiment-trials";
+        }
+        {
+          type = "lexicons";
+          name = "nlp-lexicons";
+        }
+        {
+          type = "versioning";
+          name = "versioning";
+        }
+        {
+          type = "rules";
+          name = "rules";
+        }
+        {
+          type = "taxonomies";
+          name = "taxonomies";
+        }
+        {
+          type = "vectorStores";
+          name = "vectorStores";
+        }
+        {
+          type = "vectorCollections";
+          name = "vectorCollections";
+        }
+        {
+          type = "vectorIngestors";
+          name = "vectorIngestors";
+        }
+        {
+          type = "vectorQueries";
+          name = "vectorQueries";
+        }
+        {
+          type = "resourceProfiles";
+          name = "resourceProfiles";
+        }
+        {
+          type = "schemaEvolution";
+          name = "schemaEvolution";
+        }
+        {
+          type = "loadTests";
+          name = "loadTests";
+        }
+        {
+          type = "datasetCatalog";
+          name = "datasetCatalog";
+        }
         (std.blockTypes.nixago "configs")
         (std.blockTypes.devshells "shells" {ci.build = true;})
       ];
