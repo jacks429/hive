@@ -5,20 +5,23 @@ import sys
 import os
 from transformers import pipeline
 
-def main():
-    parser = argparse.ArgumentParser(description="Run Hugging Face models")
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run a Hugging Face model")
     parser.add_argument("--model-uri", required=True, help="Model URI or path")
-    parser.add_argument("--task", required=True, help="Task type")
+    parser.add_argument("--task", required=True, help="Task type (e.g., summarizers, sentimentAnalyzers)")
     parser.add_argument("--input", required=True, help="Input file path")
     parser.add_argument("--output", required=True, help="Output file path")
     parser.add_argument("--config", required=True, help="Config file path")
-    args = parser.parse_args()
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
     
     # Load config
     with open(args.config, 'r') as f:
         config = json.load(f)
     
-    # Load input
+    # Load input text
     with open(args.input, 'r') as f:
         input_text = f.read().strip()
     

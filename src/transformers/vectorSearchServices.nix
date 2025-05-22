@@ -88,7 +88,7 @@ in {
   inherit (config) vectorDir service embedder system;
   
   # Derivations
-  service = serviceDrv;
+  serviceDrv = serviceDrv;
   docs = docsDrv;
   package = packageDrv;
 }

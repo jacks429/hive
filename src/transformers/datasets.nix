@@ -78,10 +78,9 @@ in {
   inherit (dataset) name system type description;
   
   # Type-specific fields
-  inherit (processedDataset) 
-    ${l.optionalString (dataset.type == "file") "resolvedPath"}
-    ${l.optionalString (dataset.type == "url") "fetched"}
-    ${l.optionalString (dataset.type == "derivation") "derivation"};
+  resolvedPath = if dataset.type == "file" then processedDataset.resolvedPath else null;
+  fetched = if dataset.type == "url" then processedDataset.fetched else null;
+  derivation = if dataset.type == "derivation" then processedDataset.derivation else null;
   
   # Add validation function
   validate = processedDataset.validate;
@@ -93,5 +92,6 @@ in {
   path = 
     if dataset.type == "file" then processedDataset.resolvedPath
     else if dataset.type == "url" then processedDataset.fetched
-    else if dataset.type == "derivation" then "${processedDataset.derivation}";
+    else if dataset.type == "derivation" then "${processedDataset.derivation}"
+    else null;
 }

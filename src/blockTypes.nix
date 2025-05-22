@@ -95,4 +95,55 @@
   datasetCatalog = import ./blockTypes/datasetCatalog.nix {
     inherit nixpkgs root;
   };
+
+  # Define block types for model-related blocks
+  classifiers = import ./blockTypes/classifiers.nix {
+    inherit nixpkgs root;
+  };
+  
+  deepLearningModels = import ./blockTypes/deepLearningModels.nix {
+    inherit nixpkgs root;
+  };
+  
+  embedders = import ./blockTypes/embedders.nix {
+    inherit nixpkgs root;
+  };
+  
+  topicModels = import ./blockTypes/topicModels.nix {
+    inherit nixpkgs root;
+  };
+
+  # Add this to the existing blockTypes.nix file
+  sentimentAnalyzers = import ./blockTypes/sentimentAnalyzers.nix {
+    inherit nixpkgs root;
+  };
+
+  # Generic model types with explicit modelType
+  genericModel = modelType: name: {
+    name = name;
+    modelType = modelType;
+    description = "${modelType} models";
+    
+    collector = import ./collectors/genericModel.nix {
+      inherit nixpkgs;
+      inputs = root;
+      cell = null;
+      modelType = modelType; # Explicitly pass modelType
+    };
+    
+    transformer = config: import ./transformers/genericModel.nix {
+      inherit nixpkgs root;
+      inputs = root;
+      modelType = modelType; # Explicitly pass modelType
+    } (config // { modelType = modelType; }); # Ensure config has modelType
+  };
+  
+  # Add specific model types that aren't already defined above
+  summarizers = import ./blockTypes/summarizers.nix {
+    inherit nixpkgs root;
+  };
+  
+  # Other block types
+  nixago = import ./blockTypes/nixago.nix;
+  devshells = import ./blockTypes/devshells.nix;
 }

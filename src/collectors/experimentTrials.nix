@@ -13,7 +13,7 @@
         _file = "Cell: ${cell} - Block: ${cellBlock} - Target: ${target}";
         imports = [config];
       }))
-      (l.mapAttrs (_: config: {
+      (l.mapAttrs (target: config: {
         # Basic metadata
         name = config.name or target;
         description = config.description or "";

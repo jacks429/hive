@@ -16,18 +16,18 @@
   generateTaxonomyDoc = name: taxonomy: ''
     # Taxonomy: ${name}
     
-    ${taxonomy.description}
+    ${taxonomy.description or "No description provided"}
     
     ## Format
     
-    This taxonomy uses the **${taxonomy.format}** format.
+    This taxonomy uses the **${taxonomy.format or "unknown"}** format.
     
     ## Categories
     
     ${let
-      renderCategory = indent: name: node:
+      renderCategory = indent: catName: node:
         ''
-        ${indent}- **${name}**: ${node.description or ""}
+        ${indent}- **${catName}**: ${node.description or ""}
         '' + 
         (if node ? children then
           l.concatStringsSep "" (l.mapAttrsToList (childName: childNode:
@@ -35,9 +35,9 @@
           ) node.children)
         else "");
     in
-      l.concatStringsSep "" (l.mapAttrsToList (name: node:
-        renderCategory "" name node
-      ) taxonomy.categories)}
+      l.concatStringsSep "" (l.mapAttrsToList (catName: node:
+        renderCategory "" catName node
+      ) taxonomy.categories or {})}
     
     ## Metadata
     
@@ -57,9 +57,7 @@
       steps = [
         {
           name = "classify-with-taxonomy";
-          command = ''
-            nix run .#use-taxonomy-${name} -- $INPUT_FILE $OUTPUT_FILE
-          '';
+          command = "nix run .#use-taxonomy-${name} -- $INPUT_FILE $OUTPUT_FILE";
         }
       ];
     }

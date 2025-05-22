@@ -82,3 +82,16 @@
       cd "$COMPOSE_DIR" && docker-compose down
       echo "Vector store ${store.name} stopped"
     else
+      echo "No docker-compose.yml found for vector store ${store.name}"
+    fi
+  '';
+in {
+  # Return the original configuration
+  inherit (store) name description type version;
+  inherit (store) connection resources;
+  
+  # Return the generated scripts
+  start = startStoreScript;
+  stop = stopStoreScript;
+  dockerCompose = generateDockerCompose;
+}

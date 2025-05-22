@@ -32,6 +32,6 @@
       }))
       (l.filterAttrs (_: config: config.system == system))
     ])
-    renamer;
+    renamer;  # Make sure renamer is used correctly here
 in
   walk

@@ -7,9 +7,9 @@
   inherit (root) walkPaisano;
 
   walk = self:
-    walkPaisano self "deepLearningModels" (system: cell: [
+    walkPaisano self "classifiers" (system: cell: [
       (l.mapAttrs (target: config: {
-        _file = "Cell: ${cell} - Block: deepLearningModels - Target: ${target}";
+        _file = "Cell: ${cell} - Block: classifiers - Target: ${target}";
         imports = [config];
       }))
       (l.mapAttrs (_: config: {
@@ -18,10 +18,9 @@
         description = config.description or "";
         
         # Model configuration
-        framework = config.framework or "pytorch";
+        framework = config.framework or "huggingface";
         modelUri = config.modelUri or "";
-        modelType = "deepLearningModels";
-        architecture = config.architecture or {};
+        task = "classification";
         params = config.params or {};
         
         # System information

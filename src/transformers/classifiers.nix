@@ -7,12 +7,12 @@
   # Get system-specific packages
   pkgs = nixpkgs.legacyPackages.${config.system};
   
-  # Create a wrapper script to run the deep learning model
+  # Create a wrapper script to run the classifier
   runnerScript = ''
     #!/usr/bin/env bash
     set -e
     
-    echo "Running deep learning model: ${config.name}"
+    echo "Running classifier: ${config.name}"
     
     # Parse arguments
     INPUT_FILE=""
@@ -53,17 +53,15 @@
     {
       "modelUri": "${config.modelUri}",
       "framework": "${config.framework}",
-      "architecture": ${builtins.toJSON config.architecture},
       "params": ${builtins.toJSON config.params}
     }
     EOF
     
-    # Run the deep learning model
+    # Run the classifier
     ${pkgs.python3.withPackages (ps: with ps; [ 
-      torch tensorflow numpy
-    ])}/bin/python ${root.utils.modelRunner}/deep_learning_runner.py \
+      transformers torch numpy scikit-learn
+    ])}/bin/python ${root.utils.modelRunner}/classifier_runner.py \
       --model-uri "${config.modelUri}" \
-      --framework "${config.framework}" \
       --input "$INPUT_FILE" \
       --output "$OUTPUT_FILE" \
       --config "$CONFIG_FILE"
@@ -83,6 +81,6 @@
   '';
   
   # Create the runner script derivation
-  runnerDrv = pkgs.writeScriptBin "run-deep-learning-${config.name}" runnerScript;
+  runnerDrv = pkgs.writeScriptBin "run-classifier-${config.name}" runnerScript;
   
 in runnerDrv

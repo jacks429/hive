@@ -1,42 +1,63 @@
 {
   nixpkgs,
   root,
-}: monitor: let
+}: config: let
   l = nixpkgs.lib // builtins;
-  pkgs = nixpkgs.legacyPackages.${monitor.system};
   
-  # Create a script to start the monitoring system
-  startScript = ''
+  # Get system-specific packages
+  pkgs = nixpkgs.legacyPackages.${config.system};
+  
+  # Create Grafana dashboard configuration file
+  dashboardsYaml = pkgs.writeTextFile {
+    name = "dashboards.yml";
+    text = ''
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: 'Dashboards'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 10
+        options:
+          path: /grafana/dashboards
+    '';
+  };
+  
+  # Create monitoring wrapper script
+  monitoringScript = pkgs.writeShellScriptBin "monitoring-wrapper-${config.name}" ''
     #!/usr/bin/env bash
     set -e
     
-    echo "Starting monitoring for: ${monitor.name}"
-    
     # Create configuration directory
-    CONFIG_DIR=$(mktemp -d)
-    trap "rm -rf $CONFIG_DIR" EXIT
+    CONFIG_DIR="$PRJ_ROOT/monitoring/${config.name}"
+    mkdir -p "$CONFIG_DIR"
+    
+    # Create Grafana dashboard config
+    mkdir -p $CONFIG_DIR/grafana/provisioning/dashboards
+    cp ${dashboardsYaml} $CONFIG_DIR/grafana/provisioning/dashboards/dashboards.yml
     
     # Create Prometheus configuration
     cat > $CONFIG_DIR/prometheus.yml << EOF
     global:
-      scrape_interval: ${monitor.scrapeInterval or "15s"}
-      evaluation_interval: ${monitor.evaluationInterval or "15s"}
+      scrape_interval: ${config.scrapeInterval or "15s"}
+      evaluation_interval: ${config.evaluationInterval or "15s"}
     
     scrape_configs:
-      - job_name: '${monitor.name}'
+      - job_name: '${config.name}'
         static_configs:
-          - targets: [${l.concatStringsSep ", " (map (target: "'${target}'") (monitor.targets or ["localhost:8000"]))}]
+          - targets: [${l.concatStringsSep ", " (map (target: "'${target}'") (config.targets or ["localhost:8000"]))}]
     
-    ${monitor.prometheusExtraConfig or ""}
+    ${config.prometheusExtraConfig or ""}
     EOF
     
     # Create alert rules if specified
-    ${if monitor.alertRules != null then ''
+    ${if config.alertRules != null then ''
       cat > $CONFIG_DIR/alert_rules.yml << EOF
       groups:
-      - name: ${monitor.name}_alerts
+      - name: ${config.name}_alerts
         rules:
-        ${l.concatMapStrings (rule: "  - alert: ${rule.name}\n    expr: ${rule.expr}\n    for: ${rule.for or "5m"}\n    labels:\n      severity: ${rule.severity or "warning"}\n    annotations:\n      summary: ${rule.summary}\n      description: ${rule.description or ""}\n") monitor.alertRules}
+        ${l.concatMapStrings (rule: "  - alert: ${rule.name}\n    expr: ${rule.expr}\n    for: ${rule.for or "5m"}\n    labels:\n      severity: ${rule.severity or "warning"}\n    annotations:\n      summary: ${rule.summary}\n      description: ${rule.description or ""}\n") config.alertRules}
       EOF
       
       # Add alert manager to Prometheus config
@@ -61,24 +82,24 @@
       
       receivers:
       - name: 'default'
-        ${monitor.alertManagerConfig or "# No alert manager config provided"}
+        ${config.alertManagerConfig or "# No alert manager config provided"}
       EOF
     '' else ""}
     
     # Start Prometheus
     echo "Starting Prometheus..."
-    prometheus --config.file=$CONFIG_DIR/prometheus.yml --storage.tsdb.path=/tmp/prometheus-${monitor.name} &
+    prometheus --config.file=$CONFIG_DIR/prometheus.yml --storage.tsdb.path=/tmp/prometheus-${config.name} &
     PROMETHEUS_PID=$!
     
     # Start Alert Manager if alert rules are specified
-    ${if monitor.alertRules != null then ''
+    ${if config.alertRules != null then ''
       echo "Starting Alert Manager..."
-      alertmanager --config.file=$CONFIG_DIR/alertmanager.yml --storage.path=/tmp/alertmanager-${monitor.name} &
+      alertmanager --config.file=$CONFIG_DIR/alertmanager.yml --storage.path=/tmp/alertmanager-${config.name} &
       ALERTMANAGER_PID=$!
     '' else ""}
     
     # Start Grafana if dashboards are specified
-    ${if monitor.dashboards != null then ''
+    ${if config.dashboards != null then ''
       echo "Starting Grafana..."
       # Create Grafana datasource config
       mkdir -p $CONFIG_DIR/grafana/provisioning/datasources
@@ -92,27 +113,14 @@
         isDefault: true
       EOF
       
-      # Create Grafana dashboard config
-      mkdir -p $CONFIG_DIR/grafana/provisioning/dashboards
-      cat > $CONFIG_DIR/grafana/provisioning/dashboards/dashboards.yml << EOF
-      apiVersion: 1
-      providers:
-      - name: 'default'
-        orgId: 1
-        folder: ''
-        type: file
-        disableDeletion: false
-        updateIntervalSeconds: 10
-        options:
-          path: $CONFIG_DIR/grafana/dashboards
-      EOF
-      
-      # Create dashboard files
+      # Create Grafana dashboard directory
       mkdir -p $CONFIG_DIR/grafana/dashboards
-      ${l.concatMapStrings (dashboard: "cp ${dashboard} $CONFIG_DIR/grafana/dashboards/\n") monitor.dashboards}
+      
+      # Copy dashboard files
+      ${l.concatMapStrings (dashboard: "cp ${dashboard} $CONFIG_DIR/grafana/dashboards/\n") config.dashboards}
       
       # Start Grafana
-      grafana-server --config=$CONFIG_DIR/grafana/grafana.ini --homepath=${pkgs.grafana}/share/grafana --pidfile=/tmp/grafana-${monitor.name}.pid &
+      grafana-server --config=$CONFIG_DIR/grafana/grafana.ini --homepath=${pkgs.grafana}/share/grafana --pidfile=/tmp/grafana-${config.name}.pid &
       GRAFANA_PID=$!
       
       echo "Grafana available at http://localhost:3000"
@@ -124,8 +132,8 @@
     function cleanup {
       echo "Stopping monitoring system..."
       kill $PROMETHEUS_PID
-      ${if monitor.alertRules != null then "kill $ALERTMANAGER_PID" else ""}
-      ${if monitor.dashboards != null then "kill $GRAFANA_PID" else ""}
+      ${if config.alertRules != null then "kill $ALERTMANAGER_PID" else ""}
+      ${if config.dashboards != null then "kill $GRAFANA_PID" else ""}
     }
     
     trap cleanup EXIT
@@ -134,7 +142,10 @@
     wait
   '';
   
-  # Create start script derivation
-  startDrv = pkgs.writeScriptBin "monitor-pipeline-${monitor.name}" startScript;
+in {
+  # Return the original configuration
+  inherit (config) name description;
   
-in startDrv
+  # Return the generated script
+  script = monitoringScript;
+}

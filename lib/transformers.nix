@@ -61,7 +61,7 @@ in rec {
       helpText = ''
         ${description}
         
-        Usage: ${name} ${l.concatMapStrings (arg: arg.required ? "<${arg.name}>" : "[${arg.name}]") args} ${l.concatMapStrings (flag: flag.type == "boolean" ? "[--${flag.name}]" : "[--${flag.name} <value>]") flags}
+        Usage: ${name} ${l.concatMapStrings (arg: if arg.required then "<${arg.name}>" else "[${arg.name}]") args} ${l.concatMapStrings (flag: if flag.type == "boolean" then "[--${flag.name}]" else "[--${flag.name} <value>]") flags}
         
         Arguments:
         ${l.concatMapStrings (arg: "  ${arg.name}${arg.required ? "" : " (optional)"}: ${arg.description}\n") args}

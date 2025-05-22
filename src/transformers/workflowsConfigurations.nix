@@ -113,7 +113,7 @@
   # Find endpoints for services used in this workflow
   workflowEndpoints = l.flatten (map (pipeline: 
     let 
-      pipelineConfig = pipelineConfigurations.${pipeline};
+      pipelineConfig = pipelinesRegistry.${pipeline} or {};
       pipelineServices = pipelineConfig.services or [];
     in
       map (service: 

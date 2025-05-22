@@ -16,7 +16,7 @@
         _file = "Cell: ${cell} - Block: ${cellBlock} - Target: ${target}";
         imports = [config];
       }))
-      (l.mapAttrs (_: config: {
+      (l.mapAttrs (target: config: {
         # Extract model definitions
         name = config.name or target;
         pipeline = config.pipeline or null;

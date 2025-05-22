@@ -11,4 +11,6 @@
     name = {
       description = "Name of the pipeline";
       type = "string";
-     
+    };
+  };
+};

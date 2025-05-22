@@ -7,16 +7,17 @@
   # Get system-specific packages
   pkgs = nixpkgs.legacyPackages.${config.system};
   
-  # Create a wrapper script to run the deep learning model
+  # Create a wrapper script to run the embedding model
   runnerScript = ''
     #!/usr/bin/env bash
     set -e
     
-    echo "Running deep learning model: ${config.name}"
+    echo "Running embedding model: ${config.name}"
     
     # Parse arguments
     INPUT_FILE=""
     OUTPUT_FILE=""
+    MODE="encode"
     
     while [[ $# -gt 0 ]]; do
       case $1 in
@@ -26,6 +27,10 @@
           ;;
         --output)
           OUTPUT_FILE="$2"
+          shift 2
+          ;;
+        --mode)
+          MODE="$2"
           shift 2
           ;;
         *)
@@ -53,20 +58,21 @@
     {
       "modelUri": "${config.modelUri}",
       "framework": "${config.framework}",
-      "architecture": ${builtins.toJSON config.architecture},
-      "params": ${builtins.toJSON config.params}
+      "dimensions": ${toString config.dimensions},
+      "params": ${builtins.toJSON config.params},
+      "mode": "$MODE"
     }
     EOF
     
-    # Run the deep learning model
+    # Run the embedding model
     ${pkgs.python3.withPackages (ps: with ps; [ 
-      torch tensorflow numpy
-    ])}/bin/python ${root.utils.modelRunner}/deep_learning_runner.py \
+      transformers torch numpy sentence-transformers
+    ])}/bin/python ${root.utils.modelRunner}/embedding_runner.py \
       --model-uri "${config.modelUri}" \
-      --framework "${config.framework}" \
       --input "$INPUT_FILE" \
       --output "$OUTPUT_FILE" \
-      --config "$CONFIG_FILE"
+      --config "$CONFIG_FILE" \
+      --mode "$MODE"
     
     # Output results
     if [ -n "$REMOVE_OUTPUT" ]; then
@@ -83,6 +89,6 @@
   '';
   
   # Create the runner script derivation
-  runnerDrv = pkgs.writeScriptBin "run-deep-learning-${config.name}" runnerScript;
+  runnerDrv = pkgs.writeScriptBin "run-embedder-${config.name}" runnerScript;
   
 in runnerDrv

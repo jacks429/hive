@@ -1,0 +1,7 @@
+{
+  "example-host": {
+    "hostname": "example.domain.com",
+    "sshUser": "admin",
+    "tags": ["production", "web"]
+  }
+}

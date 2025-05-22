@@ -58,7 +58,7 @@
           sentiment: .[1]
         }' $WORKSPACE/entities.json $WORKSPACE/sentiment.json > $OUTPUT_FILE
       '';
-      depends = ["entity-recognition", "sentiment-analysis"];
+      depends = ["entity-recognition" "sentiment-analysis"];
     }
   ];
   

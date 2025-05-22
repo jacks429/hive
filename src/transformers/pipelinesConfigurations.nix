@@ -27,7 +27,7 @@
   '';
   
   # Get datasets registry
-  datasetsRegistry = root.collectors.datasetsRegistry renamer;
+  datasetsRegistry = root.collectors.datasetsRegistry (cell: target: "${cell}-${target}");
 
   # Resolve dataset references in inputs
   resolvedInputs = datasetsRegistry.resolveDatasetReferences pipeline.inputs;
@@ -482,6 +482,7 @@
         name = "${name}";
         version = "${version}";
         framework = "${framework}";
+        modelType = "${pipeline.modelType or pipeline.name}";
         pipeline = "${pipeline.name}";
         description = "${description}";
         

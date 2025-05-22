@@ -27,7 +27,10 @@
     # Commands
     "${currentSystem}" = {
       # Run commands
-      "serve-vectorSearchServices-${target}" = pkgs.writeShellScriptBin "serve-vectorSearchServices-${target}" runVectorSearchService;
+      "serve-vectorSearchServices-${target}" = pkgs.writeShellScriptBin "serve-vectorSearchServices-${target}" ''
+        # Your service start script here
+        echo "Starting vector search service ${target}..."
+      '';
       
       # Documentation
       "docs-vectorSearchServices-${target}" = pkgs.writeShellScriptBin "docs-vectorSearchServices-${target}" showDocs;

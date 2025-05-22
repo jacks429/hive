@@ -12,10 +12,6 @@
   walk = self:
     walkPaisano self cellBlock (system: cell: [
       (l.mapAttrs (target: config: {
-        _file = "Cell: ${cell} - Block: ${cellBlock} - Target: ${target}";
-        imports = [config];
-      }))
-      (l.mapAttrs (_: config: {
         # Extract model definition
         name = config.name or target;
         type = "summarizer";

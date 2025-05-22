@@ -12,10 +12,10 @@ class TextInput(BaseModel):
     text: str
     params: Optional[Dict[str, Any]] = None
 
-def create_app(model_uri, framework, task, config):
+def create_app(model_uri, framework, modelType, config):
     app = FastAPI(
-        title=f"{task.capitalize()} Service",
-        description=f"API for {task} using {framework} framework",
+        title=f"{modelType.capitalize()} Service",
+        description=f"API for {modelType} using {framework} framework",
         version="1.0.0"
     )
     
@@ -24,7 +24,7 @@ def create_app(model_uri, framework, task, config):
         from transformers import pipeline
         model_params = config.get("params", {})
         
-        # Map task to Hugging Face pipeline task
+        # Map modelType to Hugging Face pipeline task
         task_mapping = {
             "summarizers": "summarization",
             "sentimentAnalyzers": "sentiment-analysis",
@@ -38,7 +38,7 @@ def create_app(model_uri, framework, task, config):
             # Add mappings for other tasks
         }
         
-        hf_task = task_mapping.get(task, task)
+        hf_task = task_mapping.get(modelType, modelType)
         model = pipeline(hf_task, model=model_uri)
     elif framework == "pytorch":
         import torch
@@ -62,16 +62,16 @@ def create_app(model_uri, framework, task, config):
             # Merge default params with request params
             params = {**config.get("params", {}), **(input_data.params or {})}
             
-            # Process with model based on task
-            if task == "summarizers":
+            # Process with model based on modelType
+            if modelType == "summarizers":
                 result = model(input_data.text, **params)
                 if isinstance(result, list):
                     return {"summary": result[0]["summary_text"]}
                 return {"summary": result["summary_text"]}
-            elif task == "sentimentAnalyzers":
+            elif modelType == "sentimentAnalyzers":
                 result = model(input_data.text, **params)
                 return result
-            # Add handlers for other tasks
+            # Add handlers for other modelTypes
             else:
                 result = model(input_data.text, **params)
                 return result
@@ -88,7 +88,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run model as a service")
     parser.add_argument("--model-uri", required=True, help="Model URI or path")
     parser.add_argument("--framework", required=True, help="Model framework")
-    parser.add_argument("--task", required=True, help="Task type")
+    parser.add_argument("--modelType", required=True, help="Model type")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind")
     parser.add_argument("--config", required=True, help="Config file path")
@@ -99,7 +99,7 @@ def main():
         config = json.load(f)
     
     # Create FastAPI app
-    app = create_app(args.model_uri, args.framework, args.task, config)
+    app = create_app(args.model_uri, args.framework, args.modelType, config)
     
     # Run server
     uvicorn.run(app, host=args.host, port=args.port)

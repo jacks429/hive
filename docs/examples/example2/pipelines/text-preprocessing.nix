@@ -58,7 +58,7 @@
           tokens: .[1]
         }' $WORKSPACE/emails.json $WORKSPACE/tokens.json > $OUTPUT_FILE
       '';
-      depends = ["extract-emails", "tokenize-text"];
+      depends = ["extract-emails" "tokenize-text"];
     }
   ];
   

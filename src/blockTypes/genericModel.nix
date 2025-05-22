@@ -1,5 +1,5 @@
 # Generic model block type definition
-{ inputs, cell, kind, cliPrefix ? "run" }: config: {
+{ inputs, cell, modelType ? "model", cliPrefix ? "run" }: config: {
   # Standard model interface
   modelUri = config.modelUri or null;
   framework = config.framework or "huggingface";
@@ -9,7 +9,7 @@
   meta = {
     name = config.name or "${cell.__cell}/${cell.__target}";
     description = config.description or "";
-    kind = kind;
+    modelType = modelType;
     tags = config.tags or [];
     license = config.license or "unknown";
     metrics = config.metrics or {};

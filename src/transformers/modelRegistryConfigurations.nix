@@ -168,6 +168,7 @@
     ## Overview
     
     - **Framework:** ${model.framework}
+    - **Model Type:** ${model.modelType or "N/A"}
     - **Pipeline:** ${model.pipeline or "N/A"}
     - **Artifact:** ${model.artifact or "N/A"}
     

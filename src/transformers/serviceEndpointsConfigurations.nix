@@ -219,7 +219,7 @@
   # Generate hosts file entry with dynamic resolution
   hostsEntry = 
     if resolvedHost != "localhost" && resolvedHost != "127.0.0.1" && !(l.hasPrefix ":" resolvedHost) then
-      "${resolvedIpAddress or "127.0.0.1"} ${resolvedHost}"
+      "${if resolvedIpAddress != null then resolvedIpAddress else "127.0.0.1"} ${resolvedHost}"
     else
       null;
   

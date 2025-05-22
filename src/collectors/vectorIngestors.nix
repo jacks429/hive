@@ -10,25 +10,18 @@
   walk = self:
     walkPaisano self cellBlock (system: cell: [
       (l.mapAttrs (target: config: {
-        _file = "Cell: ${cell} - Block: ${cellBlock} - Target: ${target}";
-        imports = [config];
-      }))
-      (l.mapAttrs (_: config: {
-        # Basic metadata
-        name = config.name or "";
+        # Extract ingestor definition
+        name = config.name or target;
         description = config.description or "";
         
-        # Target collection
-        collection = config.collection or ""; # Reference to a vectorCollection
+        # Collection to store vectors
+        collection = config.collection or "default";
         
-        # Source data configuration
-        source = {
-          type = config.source.type or "file"; # file, directory, database, api
-          format = config.source.format or "json"; # json, csv, text, etc.
-          path = config.source.path or "";
-          query = config.source.query or "";
-          filter = config.source.filter or "";
-        };
+        # Data sources
+        sources = config.sources or [];
+        
+        # Processing steps
+        processors = config.processors or [];
         
         # Embedding configuration
         embedding = {

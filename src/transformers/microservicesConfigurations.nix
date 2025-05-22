@@ -4,6 +4,9 @@
 }: config: let
   l = nixpkgs.lib // builtins;
   
+  # Get system-specific packages
+  pkgs = nixpkgs.legacyPackages.${config.system};
+  
   # Extract service definition
   service = config.config;
   
@@ -16,12 +19,51 @@
     # Add additional processing as needed
   };
   
+  # Define a default renamer function if needed
+  renamer = cell: target: "${cell}-${target}";
+  
+  # Create a basic microservice configuration
+  microservice = {
+    inherit (processedService) name system;
+    description = service.description or "Microservice ${processedService.name}";
+    
+    # Create a basic runner script
+    runner = let
+      runnerScript = ''
+        #!/usr/bin/env bash
+        set -e
+        
+        echo "Starting microservice: ${processedService.name}"
+        
+        # Add service-specific startup logic here
+        # ...
+        
+        # Example: Run a container if configured
+        ${l.optionalString (processedService.container ? image) ''
+          ${pkgs.docker}/bin/docker run \
+            --name ${processedService.name} \
+            ${l.optionalString (processedService.container ? ports) 
+              (l.concatMapStrings (port: "-p ${toString port}:${toString port} ") 
+                processedService.container.ports)} \
+            ${processedService.container.image} \
+            "$@"
+        ''}
+      '';
+      
+      runnerDrv = pkgs.writeScriptBin "run-${processedService.name}" runnerScript;
+    in
+      runnerDrv;
+    
+    # Add metadata
+    metadata = service.metadata or {};
+  };
+  
   # Get service endpoints registry with dynamic resolution
   serviceEndpointsRegistry = root.collectors.serviceEndpointsRegistry (cell: target: "${cell}-${target}");
 
   # Find endpoints for this service
   serviceEndpoints = serviceEndpointsRegistry.findEndpoints [
-    { service = microservice.name; }
+    { service = config.name; }
   ];
 
   # Add service endpoints to the microservice configuration

@@ -18,7 +18,7 @@
       }))
       (l.mapAttrs (_: config: {
         # Extract template definitions
-        name = config.name or target;
+        name = config.name or "";
         type = config.type or "pipeline"; # pipeline, step, or workflow
         description = config.description or "";
         

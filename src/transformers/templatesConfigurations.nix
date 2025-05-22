@@ -2,6 +2,7 @@
   inputs,
   nixpkgs,
   root,
+  cell ? "templates",
 }: config: let
   l = nixpkgs.lib // builtins;
   
@@ -100,13 +101,23 @@
     TEMP_FILE=$(mktemp)
     
     # Generate the instantiated pipeline
-    cat > $TEMP_FILE << 'EOF'
+    cat > $TEMP_FILE << EOF
     {
       inputs,
       cell,
     }: let
-      # Get the template registry
-      templatesRegistry = inputs.hive.collectors.templatesRegistry (cell: target: "${cell}-${target}");
+      # Get the template registry with proper cell reference
+      let
+        # Define the renamer function that handles both string and attrset targets
+        makeRenamer = cell: target:
+          if builtins.isAttrs target && target ? name
+          then "${cell}-${target.name}"
+          else "${cell}-${target}";
+        cellValue = inputs.cell;
+      in
+      templatesRegistry = inputs.hive.collectors.templatesRegistry (
+        target: makeRenamer cellValue target
+      );
       
       # Get parameters from command line
       params = {

@@ -1,18 +1,25 @@
-{ inputs, cell, kind, cliPrefix ? "run" }:
+{ inputs, cell, modelType ? "generic", cliPrefix ? "run" }:
 let
   inherit (inputs) nixpkgs;
   l = nixpkgs.lib // builtins;
   
-  # Load all model configurations for this kind
-  configs = cell.${kind} or {};
+  # Ensure modelType is defined - use a default if null
+  actualModelType = if modelType != null then modelType else "generic";
+  
+  # Load all model configurations for this modelType
+  configs = if cell != null && builtins.hasAttr actualModelType cell
+            then cell.${actualModelType} 
+            else {};
   
   # Create registry entries for each model
   registry = l.mapAttrs (name: config: {
-    inherit (config) modelUri framework params;
+    modelUri = config.modelUri or "";
+    framework = config.framework or "generic";
+    params = config.params or {};
     meta = {
       name = config.name or name;
       description = config.description or "";
-      kind = kind;
+      modelType = actualModelType;
       tags = config.tags or [];
       license = config.license or "unknown";
       metrics = config.metrics or {};
@@ -25,7 +32,9 @@ let
     system = config.system or "x86_64-linux";
   }) configs;
   
-in {
-  # Return the registry
-  ${kind}Registry = registry;
-}
+  # Create the result with a fixed attribute name
+  result = {
+    registry = registry;
+  };
+in
+  result // { "${actualModelType}Registry" = registry; } 

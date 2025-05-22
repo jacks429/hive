@@ -13,7 +13,7 @@
         _file = "Cell: ${cell} - Block: ${cellBlock} - Target: ${target}";
         imports = [config];
       }))
-      (l.mapAttrs (_: config: {
+      (l.mapAttrs (target: config: {
         # Basic metadata
         name = config.name or "";
         description = config.description or "";
@@ -26,13 +26,16 @@
         up = config.up or null;
         down = config.down or null;
         
+        # Get system-specific packages
+        pkgs = nixpkgs.legacyPackages.${system};
+        
         # Processed scripts with execution logic
         upScript = if config.up != null then ''
-          ${pkgs.lib.readFile config.up}
+          ${nixpkgs.lib.readFile config.up}
         '' else "echo 'No up migration defined'";
         
         downScript = if config.down != null then ''
-          ${pkgs.lib.readFile config.down}
+          ${nixpkgs.lib.readFile config.down}
         '' else "echo 'No down migration defined'";
         
         # System information

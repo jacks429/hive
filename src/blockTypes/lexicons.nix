@@ -25,4 +25,6 @@
         exit 1
       fi
       
-      ${lexicon.processor}/bin/use-
+      ${lexicon.processor}/bin/use-lexicon
+    '';
+!

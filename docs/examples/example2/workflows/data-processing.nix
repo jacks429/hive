@@ -29,7 +29,7 @@
     "model-train" = ["data-validate"];  # Depends on validated data
     "model-evaluate" = ["model-train"];  # Depends on trained model
     "model-deploy" = ["model-evaluate"];  # Depends on evaluated model
-    "dashboard-generate" = ["model-deploy", "data-validate"];  # Depends on deployed model and validated data
+    "dashboard-generate" = ["model-deploy" "data-validate"];  # Depends on deployed model and validated data
   };
   
   # Schedule information

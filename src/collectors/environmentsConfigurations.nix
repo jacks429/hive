@@ -16,28 +16,13 @@
         _file = "Cell: ${cell} - Block: ${cellBlock} - Target: ${target}";
         imports = [config];
       }))
-      (l.mapAttrs (_: config: {
+      (l.mapAttrs (target: config: {
         # Extract environment definitions
         name = config.name or target;
         description = config.description or "";
         
-        # Configuration overlays
-        overlays = config.overlays or {};
-        
-        # Resource quotas
-        resources = config.resources or {};
-        
-        # Service URLs and endpoints
-        services = config.services or {};
-        
-        # Secrets management
-        secrets = config.secrets or {};
-        
         # Environment variables
         variables = config.variables or {};
-        
-        # Optional metadata
-        metadata = config.metadata or {};
         
         # System information
         system = config.system or system;

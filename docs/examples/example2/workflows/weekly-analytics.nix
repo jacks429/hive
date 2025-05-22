@@ -20,7 +20,7 @@
     "data-aggregate" = [];  # No dependencies, runs first
     "metrics-calculate" = ["data-aggregate"];  # Depends on aggregate
     "anomaly-detect" = ["metrics-calculate"];  # Depends on metrics
-    "report-weekly" = ["metrics-calculate", "anomaly-detect"];  # Depends on both metrics and anomalies
+    "report-weekly" = ["metrics-calculate" "anomaly-detect"];  # Depends on both metrics and anomalies
     "dashboard-update" = ["report-weekly"];  # Depends on report
   };
   

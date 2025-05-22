@@ -77,4 +77,36 @@
         --models-dir "$MODELS_DIR" \
         --data-dir "$DATA_DIR" \
         --output-dir "$OUTPUT_DIR" \
-        --config "$CONFIG
+        --config "$CONFIG_FILE"
+    elif [ "${config.type}" == "performance" ]; then
+      ${pkgs.python3.withPackages (ps: with ps; [ 
+        numpy pandas scikit-learn matplotlib seaborn 
+      ])}/bin/python ${root.utils.modelMonitoring}/performance_monitor.py \
+        --models-dir "$MODELS_DIR" \
+        --data-dir "$DATA_DIR" \
+        --output-dir "$OUTPUT_DIR" \
+        --config "$CONFIG_FILE"
+    elif [ "${config.type}" == "bias" ]; then
+      ${pkgs.python3.withPackages (ps: with ps; [ 
+        numpy pandas scikit-learn aif360 
+      ])}/bin/python ${root.utils.modelMonitoring}/bias_detector.py \
+        --models-dir "$MODELS_DIR" \
+        --data-dir "$DATA_DIR" \
+        --output-dir "$OUTPUT_DIR" \
+        --config "$CONFIG_FILE"
+    else
+      echo "Unknown monitoring type: ${config.type}"
+      echo "Supported types: drift, performance, bias"
+      exit 1
+    fi
+    
+    # Clean up
+    rm "$CONFIG_FILE"
+    
+    echo "Monitoring complete. Results saved to $OUTPUT_DIR"
+  '';
+  
+  # Create wrapper script derivation
+  wrapperDrv = pkgs.writeScriptBin "monitor-model-${config.name}" wrapperScript;
+  
+in wrapperDrv

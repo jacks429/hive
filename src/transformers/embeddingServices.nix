@@ -193,7 +193,7 @@ in {
   
   # Derivations
   runner = runnerDrv;
-  service = serviceDrv;
+  serviceDrv = serviceDrv;
   docs = docsDrv;
   package = packageDrv;
 }
